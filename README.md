@@ -1,1 +1,1 @@
-# CS757
+# CS757 Homeworks and Assignments
