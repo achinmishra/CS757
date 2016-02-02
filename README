@@ -1,6 +1,3 @@
-Please replace this text with your own.
+1. The first assignment is based on study and implementation of OpenMP. We created Ocean simulation and measured the serial and parallel algortihms on 1,2,4,8,16 threads.
 
-This file should include 
-	1) directions for compiling your code, 
-	2) directions for running your code, 
-	3) any other comments
+More information: http://pages.cs.wisc.edu/~markhill/cs757/Spring2016/wiki/index.php?n=Main.Homework1
