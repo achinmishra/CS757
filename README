@@ -1,10 +1,17 @@
 This is the first assignment in CS757 on simulation and evalutaion Ocean workload on N={1,2,4,8,16} number of threads and also compare it with serial version of the same. 
 
-For correctness, we are going with 18x18 grid over 10 timesteps. The arguments of grids are simple and are based on the sample program provided.
+*You may want to change the chunk size if you do not want to use the default chunk size. It can be changed in omp_ocean.c in "schedule(static,#chunksize)" pragma. Currently its 16.
+
+*How to Compile:
+$> make clean
+$> make all
+
+*How to Run:
 
 serial_ocean binary will be run using the command => ./serial_ocean 18 18 10
 omp_ocean binary will be run using the command => OMP_NUM_THREADS=8 ./omp_ocean 18 18 10
 
+*For correctness, we are going with 18x18 grid over 10 timesteps. The arguments of grids are simple and are based on the sample program provided.
 To check the correctness of the program, provide the following grid input configuration with xdim, ydim and timesteps mentioned above.
 
 Input Grid:
