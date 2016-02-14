@@ -23,8 +23,9 @@ void printGrid(int** grid, int xdim, int ydim)
 
 int main(int argc, char* argv[])
 {
-	int xdim,ydim,timesteps
+	int xdim,ydim,lower_ydim, upper_ydim,timesteps
 	int** grid[2];
+	int** temp_grid;
 	int i,j;
 	
 	int myid, numprocs, next, rc, namelen;
@@ -129,14 +130,26 @@ int main(int argc, char* argv[])
 
 		for(i = 1; i < numprocs; i++)
 		{
-			int lower_ydim = ((i * (ydim - 2))/numprocs);
-			int upper_ydim = (((i + 1)* (ydim - 2))/numprocs) + 1;
+			lower_ydim = ((i * (ydim - 2))/numprocs);
+			upper_ydim = (((i + 1)* (ydim - 2))/numprocs) + 1;
 			
 			MPI_Send(&lower_ydim, 1, MPI_INT, i, 99, MPI_COMM_WORLD);
 			MPI_Send(&upper_ydim, 1, MPI_INT, i, 99, MPI_COMM_WORLD);
 			
-			MPI_Send(grid[0], (upper_ydim - lower_ydim), i, 99, MPI_COMM_WORLD);
-			MPI_Send(grid[1], (upper_ydim - lower_ydim), i, 99, MPI_COMM_WORLD);
+			MPI_Send(grid[0][lower_ydim], (upper_ydim - lower_ydim), i, 99, MPI_COMM_WORLD);
+			MPI_Send(grid[1][lower_ydim], (upper_ydim - lower_ydim), i, 99, MPI_COMM_WORLD);
+		}
+
+		lower_ydim = 0;
+		upper_ydim = ((ydim - 2)/numprocs) + 1;
+
+		for (i = lower_ydim + 1; i < upper_ydim; i++)
+		{
+			for (j = 1; j < xdim - 1 ; j++)
+			{
+				//calculating the value and storing it in the new grid
+				grid[1][j][i] = 0.2 * (grid[0][j][i] + grid[0][j][i-1] + grid[0][j-1][i] + grid[0][j][i+1] + grid[0][j+1][i]);
+			}
 		}
 
 	}	
@@ -146,8 +159,8 @@ int main(int argc, char* argv[])
 	{
 		MPI_Recv(&lower_ydim, 1, MPI_INT, 0, 99, MPI_COMM_WORLD, &status);	
 		MPI_Recv(&upper_ydim, 1, MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
-		MPI_Recv(grid[0], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
-		MPI_Recv(grid[1], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
+		MPI_Recv(grid[0][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
+		MPI_Recv(grid[1][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD, &status);
 
 		for (i = lower_ydim + 1; i < upper_ydim; i++)
 		{
@@ -161,15 +174,31 @@ int main(int argc, char* argv[])
 		MPI_Send(&lower_ydim, 1, MPI_INT, 0, 99, MPI_COMM_WORLD);
 		MPI_Send(&upper_ydim, 1, MPI_INT, 0, 99, MPI_COMM_WORLD);
 			
-		MPI_Send(grid[0], (upper_ydim - lower_ydim), 0, 99, MPI_COMM_WORLD);
-		MPI_Send(grid[1], (upper_ydim - lower_ydim), 0, 99, MPI_COMM_WORLD);	
+		MPI_Send(grid[0][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD);
+		MPI_Send(grid[1][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, 0, 99, MPI_COMM_WORLD);	
 	}
 	
+	if(myid == 0)
+	{
+		for(i = 1; i < numprocs; i++)
+		{	
+			MPI_Recv(&lower_ydim, 1, MPI_INT, i, 99, MPI_COMM_WORLD, &status);	
+			MPI_Recv(&upper_ydim, 1, MPI_INT, i, 99, MPI_COMM_WORLD, &status);
+			MPI_Recv(grid[0][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, i, 99, MPI_COMM_WORLD, &status);
+			MPI_Recv(grid[1][lower_ydim], (upper_ydim - lower_ydim), MPI_INT, i, 99, MPI_COMM_WORLD, &status);
+
+		}
+		
+		temp_grid = grid[0];
+		grid[0] = grid[1];
+		grid[1] = temp_grid;
+	}
 
 	//printGrid(grid[0], xdim, ydim);
 
 	//Do the time calcuclation
 	//printf("Total Execution time: %lld ns\n", getTimerNs(&timer));
+	MPI_Finalize();
 
 	// Free the memory we allocated for grid
 	free(temp);
