@@ -87,20 +87,11 @@ int main(int argc, char* argv[])
 	}
 	for (i=0; i<ydim; i++) {
 		for (j=0; j<xdim; j++) {
-
-			if (i == 0 || j == 0 || i == ydim - 1 || j == xdim - 1)
-			{
-				grid[0][j][i] = 1000;
-				grid[1][j][i] = 1000;
-			} else {
-				grid[0][j][i] = 500;
-				grid[1][j][i] = 500;
-			}
-			//grid[0][i][j] = rand();
+			grid[0][i][j] = rand();
 		}
 	}
 
-	printGrid(grid[0], xdim, ydim);
+	//printGrid(grid[0], xdim, ydim);
 
 
 	///////////////////////create the grid as required (end) //////////////////////////
@@ -142,7 +133,7 @@ int main(int argc, char* argv[])
 	stopTimer(&timer); // End the time measuremnt here since the algorithm ended
 
 	//printf("New Matrix after Ocean wave\n");
-	printGrid(grid[0], xdim, ydim);
+	//printGrid(grid[0], xdim, ydim);
 
 	//Do the time calcuclation
 	printf("Total Execution time: %lld ns\n", getTimerNs(&timer));

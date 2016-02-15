@@ -99,16 +99,7 @@ int main(int argc, char* argv[])
 	upper_ydim = (((myid + 1)* (ydim - 2))/numprocs) + 1;
 	for (i=0; i<xdim; i++) {
 		for (j=0; j<ydim; j++) {
-
-			if (j == 0 || i == 0 || j == xdim - 1 || i == ydim - 1)
-			{
-				grid[0][i][j] = 1000;
-				grid[1][i][j] = 1000;
-			} else {
-				grid[0][i][j] = 500;
-				grid[1][i][j] = 500;
-			}
-			//grid[0][i][j] = rand();
+			grid[0][i][j] = rand();
 		}
 	}
 	///////////////////////Get the arguments correctly (end) //////////////////////////
