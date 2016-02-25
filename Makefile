@@ -1,15 +1,19 @@
+MCC= /usr/bin/mpiCC
 CXX= gcc
 CXXFLAGS=
-LDFLAGS = -lm  
+LDFLAGS = -lm -lpthread 
+OPTFLAGS =
+MCCFLAGS=
 
-all: serial_ocean omp_ocean
+all: pthreads_ocean mpi_ocean_main
 
-serial_ocean: serial_ocean.c ocean_main.c
-	$(CXX) $(CXXFLAGS) ocean_main.c serial_ocean.c -o serial_ocean $(LDFLAGS)
+pthreads_ocean: pthreads_ocean.c
+		$(CXX) $(CXXFLAGS) pthreads_ocean_main.c pthreads_ocean.c -o pthreads_ocean $(LDFLAGS)
 
-omp_ocean: omp_ocean.c ocean_main.c
-	$(CXX) $(CXXFLAGS) -fopenmp omp_ocean.c ocean_main.c -o omp_ocean $(LDFLAGS)
+mpi_ocean_main: mpi_ocean_main.c
+		$(MCC) $(OPTFLAGS) -o mpi_ocean_main mpi_ocean_main.c -lm
 
 clean:
-	rm -f serial_ocean
-	rm -f omp_ocean
+	rm -f pthreads_ocean
+	/bin/rm -f *.o *~ mpi_ocean_main
+

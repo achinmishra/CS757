@@ -1,6 +1,14 @@
 #include <stdio.h>
 
-void ocean (int **grid[2], int xdim, int ydim, int timesteps)
+typedef struct _payload
+{
+	int **grid[2];
+	int xdim;
+	int lower_ydim;
+	int upper_ydim;
+}payload;
+
+void *ocean (void *arguments)
 {
 
 	/********************************************************
@@ -15,22 +23,17 @@ void ocean (int **grid[2], int xdim, int ydim, int timesteps)
 	 * the other grid. Then, swap the grids for the next
 	 * iteration.
 	 ******************************************************/
-	int i,j,temp;
+	payload* args = (payload*)arguments;
+
+	int i,j;
 	int **temp_grid;
 
-	while (timesteps-- >= 0)
-	{	
-		for (i = 1; i < xdim - 1; i++)
+	for (i = args->lower_ydim; i <= args->upper_ydim; i++)
+	{
+		for (j = 1; j < args->xdim - 1 ; j++)
 		{
-			for (j = 1; j < ydim - 1 ; j++)
-			{
-				//calculating the value and storing it in the new grid
-				grid[1][i][j] = 0.2 * (grid[0][i][j] + grid[0][i][j-1] + grid[0][i-1][j] + grid[0][i][j+1] + grid[0][i+1][j]);
-			}
+			//calculating the value and storing it in the new grid
+			args->grid[1][j][i] = 0.2 * (args->grid[0][j][i] + args->grid[0][j][i-1] + args->grid[0][j-1][i] + args->grid[0][j][i+1] + args->grid[0][j+1][i]);
 		}
-		//swap the grid now
-		temp_grid = grid[0];
-		grid[0] = grid[1];
-		grid[1] = temp_grid;
 	}
 }
