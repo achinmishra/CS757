@@ -2,21 +2,102 @@
 #include <stdlib.h>
 #include "sys/mman.h"
 #include <pthread.h>
-
+#include <assert.h>
 #include "hwtimer.h"
+
+
+int xdim,ydim,timesteps,num_of_threads;
+int** grid[2];
+
 
 typedef struct _payload
 {
-	        int** grid[2];
-	        int xdim;
+	    
+	       // int xdim;
 	        int lower_ydim;
 	        int upper_ydim;
+		//int timesteps;
 }payload;
 
-/* Implement this function in serial_ocean and omp_ocean */
-extern void ocean (void * arguments);
 
-void printGrid(int** grid, int xdim, int ydim)
+pthread_mutex_t   SyncLock; /* mutex */
+pthread_cond_t    SyncCV; /* condition variable */
+int               SyncCount; /* number of processors at the barrier so far */
+
+pthread_mutex_t   ThreadLock; /* mutex */
+//int               Count; /* the shared counter */
+
+void swap()
+{
+	int** tempgrid;
+	//pthread_mutex_lock(&ThreadLock);	
+	tempgrid = grid[0];
+	grid[0] = grid[1];
+	grid[1] = tempgrid; 
+	//pthread_mutex_unlock(&ThreadLock);
+}
+
+void Barrier()
+{
+	int ret;
+
+	pthread_mutex_lock(&SyncLock); /* Get the thread lock */
+	SyncCount++;
+	//pthread_mutex_unlock(&SyncLock);
+
+	//printf("in barrier, updated SyncCount: %d\n",SyncCount);
+	if(SyncCount == num_of_threads) {
+		//printf("Now resetting sync\n");
+		swap();
+		ret = pthread_cond_broadcast(&SyncCV);
+		SyncCount = 0;
+		assert(ret == 0);
+		//swap();
+	} else {
+		//printf("releasing synclock here \r\n");
+		ret = pthread_cond_wait(&SyncCV, &SyncLock);
+		assert(ret == 0);
+	}
+	pthread_mutex_unlock(&SyncLock);
+	//printf("back from barrier and synccnt:%d\n", SyncCount);
+}
+
+
+void *ocean (void *arguments)
+{ 
+        payload* args = (payload*)arguments;
+
+        int i,j;
+	//int iter = 0;
+        //int **temp_grid;
+        int k = timesteps;
+
+        while(k-- >= 0)
+        {
+	//	printf("started with iteration %d current time step  %d\n",iter,k);
+                for (i = args->lower_ydim; i <= args->upper_ydim; i++)
+                { 
+                        for (j = 1; j < xdim - 1 ; j++)
+                        {
+                                //calculating the value and storing it in the new grid
+                                grid[1][j][i] = 0.2 * (grid[0][j][i] + grid[0][j][i-1] + grid[0][j-1][i] + grid[0][j][i+1] + grid[0][j+1][i]);
+                        }
+                }
+         //need to barrier and swapcode here
+         Barrier();
+	// iter++;
+         }
+}
+                                
+
+
+
+
+
+/* Implement this function in serial_ocean and omp_ocean */
+//extern void ocean (void * arguments);
+
+void printGrid()
 {
 	int i,j;
 	for (i=0; i<ydim; i++)
@@ -24,16 +105,17 @@ void printGrid(int** grid, int xdim, int ydim)
 		printf("\n");
 		for (j=0; j<xdim; j++)
 		{
-			printf("%d\t",grid[j][i]);
+			printf("%d\t",grid[1][j][i]);
 		}
 	}
 }
 
 int main(int argc, char* argv[])
 {
-	int xdim,ydim,timesteps,num_of_threads;
-	int** grid[2];
-	int i,j,t,rc;
+	//int xdim,ydim,timesteps,num_of_threads;
+	//int** grid[2];
+	pthread_attr_t attr;
+	int i,j,t,rc,ret;
 
 	hwtimer_t timer;
 	initTimer(&timer);
@@ -55,8 +137,26 @@ int main(int argc, char* argv[])
 		ydim = atoi(argv[2]);
 		timesteps = atoi(argv[3]);
 		num_of_threads = atoi(argv[4]);
+		printf("arguments are %d %d %d %d",xdim,ydim,timesteps,num_of_threads);
 	}
 	///////////////////////Get the arguments correctly (end) //////////////////////////
+
+	/* Initialize thread attribute */
+	pthread_attr_init(&attr);
+	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM); // sys manages contention
+
+	/* Initialize mutexs */
+	ret = pthread_mutex_init(&SyncLock, NULL);
+	assert(ret == 0);
+	//ret = pthread_mutex_init(&ThreadLock, NULL);
+	//assert(ret == 0);
+
+	/* Init condition variable */
+	ret = pthread_cond_init(&SyncCV, NULL);
+	assert(ret == 0);
+	SyncCount = 0;
+
+	//Count = 0;
 
 
 	/*********************create the grid as required (start) ************************/
@@ -78,7 +178,7 @@ int main(int argc, char* argv[])
 	pthread_t threads[num_of_threads]; //instantiating the number of threads inputted
 	payload arguments[num_of_threads];
 	void *status;
-	int** temp_grid;
+	//int** temp_grid;
 
 	// Force xdim to be a multiple of 64 bytes.
 	for (i=0; i<ydim; i++) {
@@ -87,56 +187,57 @@ int main(int argc, char* argv[])
 	}
 	for (i=0; i<ydim; i++) {
 		for (j=0; j<xdim; j++) {
-			grid[0][i][j] = rand();
+			//grid[0][i][j] = rand();
+			grid[0][i][j] = 1000;
 		}
 	}
 
 	//printGrid(grid[0], xdim, ydim);
-
+	printGrid();
 
 	///////////////////////create the grid as required (end) //////////////////////////
 
-	startTimer(&timer); // Start the time measurment here before the algorithm starts
-	while(timesteps-- >= 0)
+	startTimer(&timer); // Start the time measurment here before the algorithm s
+	for (t=0; t<num_of_threads; t++)
 	{
-		for (t=0; t<num_of_threads; t++)
+		//arguments[t].grid[0] = grid[0];
+		//arguments[t].grid[1] = grid[1];
+		//arguments[t].xdim = xdim;
+		arguments[t].lower_ydim = ((t * (ydim - 2))/num_of_threads) + 1;
+		arguments[t].upper_ydim = (((t + 1)* (ydim - 2))/num_of_threads);
+		//arguments[t].timesteps = timesteps;
+		rc = pthread_create(&threads[t], NULL, ocean, &arguments[t]);
+		if(rc)
 		{
-			arguments[t].grid[0] = grid[0];
-			arguments[t].grid[1] = grid[1];
-			arguments[t].xdim = xdim;
-			arguments[t].lower_ydim = ((t * (ydim - 2))/num_of_threads) + 1;
-			//arguments[t].upper_ydim = (t == num_of_threads - 1) ? ((((t + 1)* (ydim - 2))/num_of_threads) - 1): (((t + 1)* (ydim - 2))/num_of_threads);
-			arguments[t].upper_ydim = (((t + 1)* (ydim - 2))/num_of_threads);
-			rc = pthread_create(&threads[t], NULL, ocean, &arguments[t]);
-			if(rc)
-			{
-				printf("Error! Thread creation failed\n");
-				exit(0);
-			}
+			printf("Error! Thread creation failed\n");
+			exit(0);
 		}
+	}
 	
-		for (t=0; t<num_of_threads; t++)
-	        {
-			rc = pthread_join(threads[t], &status);
-			if(rc)
-			{
-				printf("Error! Thread joining failed\n");
-				exit(0);
-			}
+	for (t=0; t<num_of_threads; t++)
+	{
+		rc = pthread_join(threads[t], &status);
+		if(rc)
+		{
+			printf("Error! Thread joining failed\n");
+			exit(0);
 		}
-		//swap the grids
-		temp_grid = grid[0];
-		grid[0] = grid[1];
-		grid[1] = temp_grid;
-	}		
+	}
+		
 
-	stopTimer(&timer); // End the time measuremnt here since the algorithm ended
+	stopTimer(&timer); // End the time measuremnt here since the algorithm ende
 
-	//printf("New Matrix after Ocean wave\n");
+	printf("New Matrix after Ocean wave\n");
 	//printGrid(grid[0], xdim, ydim);
+	printGrid();
 
 	//Do the time calcuclation
 	printf("Total Execution time: %lld ns\n", getTimerNs(&timer));
+
+	pthread_mutex_destroy(&SyncLock);
+	pthread_cond_destroy(&SyncCV);
+	pthread_attr_destroy(&attr);
+
 
 	// Free the memory we allocated for grid
 	free(temp);
